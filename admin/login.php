@@ -13,6 +13,8 @@ if (admin_is_logged_in($config)) {
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require($config, $_POST['csrf_token'] ?? null);
+
     $username = trim((string) ($_POST['username'] ?? ''));
     $password = (string) ($_POST['password'] ?? '');
 
@@ -44,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <form method="post" class="login-form">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
                 <label>
                     Username
                     <input name="username" autocomplete="username" required autofocus>
