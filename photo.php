@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-$config = require __DIR__ . '/config.php';
+$config = require __DIR__ . '/lib/bootstrap.php';
 
 require __DIR__ . '/lib/events.php';
 
