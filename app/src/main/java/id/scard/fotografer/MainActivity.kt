@@ -4,49 +4,78 @@ import android.app.Activity
 import android.os.Bundle
 import android.hardware.usb.UsbManager
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import android.view.Gravity
+import android.view.View
 import android.widget.*
+import java.io.File
 
 class MainActivity : Activity() {
- private lateinit var cameraStatus: TextView
- private fun text(value:String,size:Float=16f,bold:Boolean=false)=TextView(this).apply{
-  text=value;textSize=size;setTextColor(Color.rgb(238,241,246));setPadding(0,8,0,8)
-  if(bold)setTypeface(typeface,Typeface.BOLD)
- }
- private fun card():LinearLayout=LinearLayout(this).apply{
-  orientation=LinearLayout.VERTICAL;setPadding(28,24,28,24)
-  setBackgroundColor(Color.rgb(24,28,36))
- }
+ private lateinit var cameraStatus:TextView
+ private lateinit var serverStatus:TextView
+ private lateinit var preview:ImageView
+ private lateinit var emptyPreview:TextView
+ private lateinit var fileName:TextView
+ private lateinit var uploadStatus:TextView
+ private lateinit var counter:TextView
+
  override fun onCreate(savedInstanceState:Bundle?){
   super.onCreate(savedInstanceState)
-  val scroll=ScrollView(this)
-  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(32,26,32,32);setBackgroundColor(Color.rgb(10,12,16))}
-  val head=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL}
-  head.addView(text("FOTOGRAFER",28f,true),LinearLayout.LayoutParams(0,-2,1f))
-  val live=text("● READY",14f,true).apply{setTextColor(Color.rgb(98,220,153))}
-  head.addView(live);root.addView(head)
-  root.addView(text("Instant Photo Delivery • Tablet Console",14f))
+  window.statusBarColor=Color.rgb(7,9,12);window.navigationBarColor=Color.rgb(7,9,12)
 
-  val statusCard=card();statusCard.addView(text("CAMERA",12f,true))
-  cameraStatus=text("Memeriksa USB…",22f,true);statusCard.addView(cameraStatus)
-  statusCard.addView(text("Canon EOS • USB/PTP",14f));root.addView(statusCard)
+  val root=LinearLayout(this).apply{
+   orientation=LinearLayout.VERTICAL;setPadding(22,16,22,16);setBackgroundColor(Color.rgb(7,9,12))
+  }
 
-  val preview=card();preview.addView(text("FOTO TERBARU",12f,true))
-  preview.addView(text("Belum ada foto",30f,true))
-  preview.addView(text("Hasil jepretan terbaru akan tampil otomatis di sini.",15f));root.addView(preview)
+  val top=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL}
+  top.addView(label("FOTOGRAFER",22f,true),LinearLayout.LayoutParams(0,-2,1f))
+  cameraStatus=label("● CAMERA",12f,true);top.addView(cameraStatus)
+  serverStatus=label("  ● SERVER",12f,true);top.addView(serverStatus)
+  root.addView(top)
+  root.addView(label("Canon USB • Instant Preview & Delivery",12f),LinearLayout.LayoutParams(-1,-2))
 
-  val stats=card();stats.addView(text("UPLOAD STATUS",12f,true))
-  stats.addView(text("Uploaded   0     •     Pending   0     •     Failed   0",18f,true))
-  stats.addView(text("Server belum dikonfigurasi",14f));root.addView(stats)
+  val frame=FrameLayout(this).apply{setBackgroundColor(Color.rgb(15,18,23))}
+  preview=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER;visibility=View.GONE}
+  frame.addView(preview,FrameLayout.LayoutParams(-1,-1))
+  emptyPreview=label("Hasil jepretan akan tampil di sini",18f,true).apply{gravity=Gravity.CENTER}
+  frame.addView(emptyPreview,FrameLayout.LayoutParams(-1,-1))
+  root.addView(frame,LinearLayout.LayoutParams(-1,0,1f).apply{setMargins(0,14,0,14)})
 
-  val settings=Button(this).apply{text="PENGATURAN SERVER & TOKEN";textSize=15f}
-  root.addView(settings)
-  scroll.addView(root);setContentView(scroll);refreshUsb()
+  val info=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL;setPadding(16,10,16,10);setBackgroundColor(Color.rgb(19,23,29))}
+  val left=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
+  fileName=label("Belum ada foto",16f,true);uploadStatus=label("Menunggu jepretan Canon EOS",12f)
+  left.addView(fileName);left.addView(uploadStatus);info.addView(left,LinearLayout.LayoutParams(0,-2,1f))
+  counter=label("UP 0   •   QUEUE 0   •   FAIL 0",12f,true);info.addView(counter)
+  root.addView(info)
+
+  setContentView(root);refreshUsb()
  }
+
+ private fun label(v:String,s:Float,b:Boolean=false)=TextView(this).apply{
+  text=v;textSize=s;setTextColor(Color.rgb(235,239,245));setPadding(6,5,6,5)
+  if(b)setTypeface(typeface,Typeface.BOLD)
+ }
+
+ /** Call this when the Canon/PTP layer finishes downloading a new JPEG. */
+ fun showCapturedPhoto(file:File){
+  runOnUiThread{
+   val bmp=BitmapFactory.decodeFile(file.absolutePath)
+   if(bmp!=null){preview.setImageBitmap(bmp);preview.visibility=View.VISIBLE;emptyPreview.visibility=View.GONE}
+   fileName.text=file.name;uploadStatus.text="Foto diterima • menunggu/upload ke server"
+  }
+ }
+
+ /** Call this from the uploader/queue whenever counters change. */
+ fun updateUploadState(uploaded:Int,pending:Int,failed:Int,message:String){
+  runOnUiThread{counter.text="UP $uploaded   •   QUEUE $pending   •   FAIL $failed";uploadStatus.text=message}
+ }
+
  private fun refreshUsb(){
-  val usb=getSystemService(USB_SERVICE) as UsbManager;val devices=usb.deviceList.values
-  cameraStatus.text=if(devices.isEmpty())"○ Kamera belum terhubung" else "● "+(devices.first().productName?:"USB Camera")+" terhubung"
-  cameraStatus.setTextColor(if(devices.isEmpty())Color.rgb(255,190,92) else Color.rgb(98,220,153))
+  val usb=getSystemService(USB_SERVICE) as UsbManager;val d=usb.deviceList.values.firstOrNull()
+  cameraStatus.text=if(d==null)"○ CAMERA" else "● CAMERA"
+  cameraStatus.setTextColor(if(d==null)Color.rgb(255,183,77) else Color.rgb(91,214,145))
+  serverStatus.text="  ○ SERVER"
+  serverStatus.setTextColor(Color.rgb(150,158,170))
  }
 }
