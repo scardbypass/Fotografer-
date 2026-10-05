@@ -1,6 +1,85 @@
 <?php
-function load_events(array $c):array{$f=$c["storage"]."/events.json";if(!is_file($f))return[];$v=json_decode(file_get_contents($f),true);return is_array($v)?$v:[];}
-function save_events(array $c,array $e):void{if(!is_dir($c["storage"]))mkdir($c["storage"],0755,true);file_put_contents($c["storage"]."/events.json",json_encode($e,JSON_PRETTY_PRINT),LOCK_EX);}
-function token_hash(string $t):string{return hash("sha256",$t);}
-function new_upload_token():string{return "ft_".bin2hex(random_bytes(24));}
-function find_event_by_token(array $events,string $token):?array{$h=token_hash($token);foreach($events as $e){if(($e["active"]??false)&&hash_equals($e["token_hash"]??"",$h))return $e;}return null;}
+
+declare(strict_types=1);
+
+function events_file(array $config): string
+{
+    return rtrim($config['storage'], '/') . '/events.json';
+}
+
+function load_events(array $config): array
+{
+    $filePath = events_file($config);
+
+    if (!is_file($filePath)) {
+        return [];
+    }
+
+    $json = file_get_contents($filePath);
+
+    if ($json === false || $json === '') {
+        return [];
+    }
+
+    $events = json_decode($json, true);
+
+    return is_array($events) ? $events : [];
+}
+
+function save_events(array $config, array $events): void
+{
+    $storageDirectory = $config['storage'];
+
+    if (!is_dir($storageDirectory)) {
+        mkdir($storageDirectory, 0755, true);
+    }
+
+    $json = json_encode(
+        $events,
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+    );
+
+    if ($json === false) {
+        throw new RuntimeException('Event data gagal di-encode.');
+    }
+
+    $saved = file_put_contents(
+        events_file($config),
+        $json,
+        LOCK_EX
+    );
+
+    if ($saved === false) {
+        throw new RuntimeException('Event data gagal disimpan.');
+    }
+}
+
+function token_hash(string $token): string
+{
+    return hash('sha256', $token);
+}
+
+function new_upload_token(): string
+{
+    return 'ft_' . bin2hex(random_bytes(24));
+}
+
+function find_event_by_token(array $events, string $token): ?array
+{
+    $incomingHash = token_hash($token);
+
+    foreach ($events as $event) {
+        $isActive = (bool) ($event['active'] ?? false);
+        $storedHash = (string) ($event['token_hash'] ?? '');
+
+        if (
+            $isActive
+            && $storedHash !== ''
+            && hash_equals($storedHash, $incomingHash)
+        ) {
+            return $event;
+        }
+    }
+
+    return null;
+}
