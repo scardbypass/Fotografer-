@@ -141,20 +141,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="actions">
                     <form method="post">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" name="action" value="visibility">
+                        <input type="hidden" name="action" value="visibility">
                         <input type="hidden" name="id" value="<?= htmlspecialchars($event['id']) ?>">
                         <button class="secondary" type="submit">Ubah akses</button>
                     </form>
 
                     <form method="post">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" name="action" value="regenerate">
+                        <input type="hidden" name="action" value="regenerate">
                         <input type="hidden" name="id" value="<?= htmlspecialchars($event['id']) ?>">
                         <button type="submit">Token baru</button>
                     </form>
 
                     <?php if (!$isPrivate): ?>
-                        <a href="../?event=<?= urlencode($event['id']) ?>" target="_blank">
+                        <a href="../?event=<?= urlencode($event['id']) ?>" target="_blank" rel="noopener noreferrer">
                             Buka galeri
                         </a>
                     <?php endif; ?>
