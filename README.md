@@ -1,10 +1,19 @@
-# Fotografer Instant Delivery
+# FOTOGRAFER — Android APK
 
-Sistem instant photo delivery untuk fotografer.
+Branch ini **khusus aplikasi Android/tablet**. Tidak ada source website di branch ini.
 
-## Struktur
-- `android/` — aplikasi tablet Android: Canon USB/PTP, preview, queue, auto-upload.
-- `website/` — backend API + galeri pelanggan + link event.
+## Tugas APK
+Canon EOS 600D → USB OTG → tablet → ambil JPEG otomatis → preview → upload ke website.
 
-## Alur
-Canon EOS 600D -> USB OTG -> Android -> HTTPS Upload -> Website -> pelanggan pilih/download.
+APK tidak menangani galeri customer, QR, atau download. Semua itu milik branch `website`.
+
+## Konfigurasi di APK
+Fotografer cukup mengisi:
+- URL Website/API, contoh: `https://foto.domain.com`
+- API Token
+- Event aktif
+
+Endpoint upload mengikuti website, misalnya `POST {URL}/api/upload.php`.
+
+## Source
+Source Android berada di folder `android/` pada branch ini.
