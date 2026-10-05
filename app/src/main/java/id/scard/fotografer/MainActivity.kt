@@ -11,71 +11,51 @@ import android.view.View
 import android.widget.*
 import java.io.File
 
-class MainActivity : Activity() {
- private lateinit var cameraStatus:TextView
- private lateinit var serverStatus:TextView
- private lateinit var preview:ImageView
- private lateinit var emptyPreview:TextView
- private lateinit var fileName:TextView
- private lateinit var uploadStatus:TextView
- private lateinit var counter:TextView
+class MainActivity:Activity(){
+ private lateinit var camera:TextView;private lateinit var server:TextView;private lateinit var image:ImageView
+ private lateinit var empty:LinearLayout;private lateinit var filename:TextView;private lateinit var transfer:TextView;private lateinit var stats:TextView
 
- override fun onCreate(savedInstanceState:Bundle?){
-  super.onCreate(savedInstanceState)
-  window.statusBarColor=Color.rgb(7,9,12);window.navigationBarColor=Color.rgb(7,9,12)
+ override fun onCreate(state:Bundle?){super.onCreate(state)
+  window.statusBarColor=Color.BLACK;window.navigationBarColor=Color.BLACK
+  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.BLACK)}
+  val bar=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL;setPadding(22,10,22,10);setBackgroundColor(Color.rgb(17,17,17))}
+  val brand=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
+  brand.addView(txt("FOTOGRAFER",17f,true));brand.addView(txt("INSTANT PHOTO DELIVERY",9f,false,Color.rgb(145,145,145)))
+  bar.addView(brand,LinearLayout.LayoutParams(0,-2,1f))
+  camera=chip("CAMERA");server=chip("SERVER");bar.addView(camera);bar.addView(server);root.addView(bar)
 
-  val root=LinearLayout(this).apply{
-   orientation=LinearLayout.VERTICAL;setPadding(22,16,22,16);setBackgroundColor(Color.rgb(7,9,12))
-  }
+  val stage=FrameLayout(this).apply{setBackgroundColor(Color.BLACK)}
+  image=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER;visibility=View.GONE}
+  stage.addView(image,FrameLayout.LayoutParams(-1,-1))
+  empty=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER}
+  empty.addView(txt("MENUNGGU FOTO",16f,true).apply{gravity=Gravity.CENTER})
+  empty.addView(txt("Hubungkan Canon melalui USB lalu mulai memotret.",12f,false,Color.rgb(130,130,130)).apply{gravity=Gravity.CENTER})
+  stage.addView(empty,FrameLayout.LayoutParams(-1,-1));root.addView(stage,LinearLayout.LayoutParams(-1,0,1f))
 
-  val top=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL}
-  top.addView(label("FOTOGRAFER",22f,true),LinearLayout.LayoutParams(0,-2,1f))
-  cameraStatus=label("● CAMERA",12f,true);top.addView(cameraStatus)
-  serverStatus=label("  ● SERVER",12f,true);top.addView(serverStatus)
-  root.addView(top)
-  root.addView(label("Canon USB • Instant Preview & Delivery",12f),LinearLayout.LayoutParams(-1,-2))
-
-  val frame=FrameLayout(this).apply{setBackgroundColor(Color.rgb(15,18,23))}
-  preview=ImageView(this).apply{scaleType=ImageView.ScaleType.FIT_CENTER;visibility=View.GONE}
-  frame.addView(preview,FrameLayout.LayoutParams(-1,-1))
-  emptyPreview=label("Hasil jepretan akan tampil di sini",18f,true).apply{gravity=Gravity.CENTER}
-  frame.addView(emptyPreview,FrameLayout.LayoutParams(-1,-1))
-  root.addView(frame,LinearLayout.LayoutParams(-1,0,1f).apply{setMargins(0,14,0,14)})
-
-  val info=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL;setPadding(16,10,16,10);setBackgroundColor(Color.rgb(19,23,29))}
-  val left=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
-  fileName=label("Belum ada foto",16f,true);uploadStatus=label("Menunggu jepretan Canon EOS",12f)
-  left.addView(fileName);left.addView(uploadStatus);info.addView(left,LinearLayout.LayoutParams(0,-2,1f))
-  counter=label("UP 0   •   QUEUE 0   •   FAIL 0",12f,true);info.addView(counter)
-  root.addView(info)
-
+  val bottom=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL;setPadding(22,10,22,10);setBackgroundColor(Color.rgb(17,17,17))}
+  val info=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
+  filename=txt("Belum ada foto",14f,true);transfer=txt("Siap menerima JPEG",11f,false,Color.rgb(150,150,150))
+  info.addView(filename);info.addView(transfer);bottom.addView(info,LinearLayout.LayoutParams(0,-2,1f))
+  stats=txt("0 UP   0 QUEUE   0 FAIL",11f,true,Color.rgb(190,190,190));bottom.addView(stats);root.addView(bottom)
   setContentView(root);refreshUsb()
  }
 
- private fun label(v:String,s:Float,b:Boolean=false)=TextView(this).apply{
-  text=v;textSize=s;setTextColor(Color.rgb(235,239,245));setPadding(6,5,6,5)
-  if(b)setTypeface(typeface,Typeface.BOLD)
- }
+ private fun txt(v:String,s:Float,b:Boolean=false,c:Int=Color.WHITE)=TextView(this).apply{text=v;textSize=s;setTextColor(c);setPadding(5,3,5,3);if(b)setTypeface(typeface,Typeface.BOLD)}
+ private fun chip(v:String)=txt("  $v  ",10f,true,Color.rgb(150,150,150)).apply{setPadding(10,8,10,8)}
 
- /** Call this when the Canon/PTP layer finishes downloading a new JPEG. */
- fun showCapturedPhoto(file:File){
-  runOnUiThread{
-   val bmp=BitmapFactory.decodeFile(file.absolutePath)
-   if(bmp!=null){preview.setImageBitmap(bmp);preview.visibility=View.VISIBLE;emptyPreview.visibility=View.GONE}
-   fileName.text=file.name;uploadStatus.text="Foto diterima • menunggu/upload ke server"
-  }
- }
+ fun showCapturedPhoto(file:File){runOnUiThread{
+  val opts=android.graphics.BitmapFactory.Options().apply{inSampleSize=2};val bmp=BitmapFactory.decodeFile(file.absolutePath,opts)
+  if(bmp!=null){image.setImageBitmap(bmp);image.visibility=View.VISIBLE;empty.visibility=View.GONE}
+  filename.text=file.name;transfer.text="Foto diterima · menyiapkan upload"
+ }}
 
- /** Call this from the uploader/queue whenever counters change. */
- fun updateUploadState(uploaded:Int,pending:Int,failed:Int,message:String){
-  runOnUiThread{counter.text="UP $uploaded   •   QUEUE $pending   •   FAIL $failed";uploadStatus.text=message}
- }
+ fun updateUploadState(uploaded:Int,pending:Int,failed:Int,message:String){runOnUiThread{
+  stats.text="$uploaded UP   $pending QUEUE   $failed FAIL";transfer.text=message
+  server.text=if(failed>0)"  SERVER !  " else "  SERVER ●  ";server.setTextColor(if(failed>0)Color.rgb(232,173,84) else Color.rgb(112,203,146))
+ }}
 
- private fun refreshUsb(){
-  val usb=getSystemService(USB_SERVICE) as UsbManager;val d=usb.deviceList.values.firstOrNull()
-  cameraStatus.text=if(d==null)"○ CAMERA" else "● CAMERA"
-  cameraStatus.setTextColor(if(d==null)Color.rgb(255,183,77) else Color.rgb(91,214,145))
-  serverStatus.text="  ○ SERVER"
-  serverStatus.setTextColor(Color.rgb(150,158,170))
+ private fun refreshUsb(){val usb=getSystemService(USB_SERVICE) as UsbManager;val d=usb.deviceList.values.firstOrNull()
+  camera.text=if(d==null)"  CAMERA ○  " else "  CAMERA ●  ";camera.setTextColor(if(d==null)Color.rgb(210,160,82) else Color.rgb(112,203,146))
+  server.text="  SERVER ○  "
  }
 }
