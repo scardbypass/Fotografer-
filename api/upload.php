@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
-$config = require dirname(__DIR__) . '/config.php';
+$config = require dirname(__DIR__) . '/lib/bootstrap.php';
 
 require dirname(__DIR__) . '/lib/events.php';
 
