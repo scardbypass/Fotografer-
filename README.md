@@ -1,19 +1,16 @@
 # FOTOGRAFER — Android APK
 
-Branch ini **khusus aplikasi Android/tablet**. Tidak ada source website di branch ini.
+Branch ini langsung berisi project Android di root. Tidak ada subfolder `android/` dan tidak ada source website.
 
-## Tugas APK
-Canon EOS 600D → USB OTG → tablet → ambil JPEG otomatis → preview → upload ke website.
+## Fungsi
+Canon EOS 600D → USB OTG → tablet → preview → auto upload.
 
-APK tidak menangani galeri customer, QR, atau download. Semua itu milik branch `website`.
+APK hanya membutuhkan **Server URL + Upload Token**. Folder tujuan ditentukan website berdasarkan token.
 
-## Konfigurasi di APK
-Fotografer cukup mengisi:
-- URL Website/API, contoh: `https://foto.domain.com`
-- API Token
-- Event aktif
-
-Endpoint upload mengikuti website, misalnya `POST {URL}/api/upload.php`.
-
-## Source
-Source Android berada di folder `android/` pada branch ini.
+## Struktur
+```
+app/
+build.gradle.kts
+settings.gradle.kts
+README.md
+```
