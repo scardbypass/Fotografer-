@@ -3,6 +3,8 @@
 Sistem fotografer event/wisata: hasil Canon langsung tampil di tablet, otomatis masuk server, lalu customer membuka foto melalui QR/link.
 
 > **Branch main hanya untuk panduan. Source code tidak diletakkan di sini.**
+>
+> Status saat ini: backend upload/event/login sudah berupa MVP untuk testing shared hosting. APK masih development build; transfer USB/PTP Canon EOS 600D, settings, dan persistent queue belum selesai.
 
 ## Struktur Branch
 
@@ -12,7 +14,7 @@ Sistem fotografer event/wisata: hasil Canon langsung tampil di tablet, otomatis 
 | `apk` | Source APK Android/tablet + Canon USB/PTP |
 | `website` | Website, API, galeri, QR dan download |
 
-## Alur Sistem
+## Arsitektur Target
 
 ```text
 Canon EOS 600D
@@ -44,7 +46,7 @@ Website Gallery
 HP Customer
 ```
 
-## Alur Kerja Fotografer
+## Alur Kerja Target
 
 1. Buat **Event**, misalnya `Alun-Alun Jombang - Malam Minggu`.
 2. Sambungkan Canon EOS 600D ke tablet Android menggunakan USB OTG.
