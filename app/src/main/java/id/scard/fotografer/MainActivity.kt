@@ -11,12 +11,19 @@ import android.view.View
 import android.widget.*
 import java.io.File
 
-class MainActivity:Activity(){
- private lateinit var camera:TextView;private lateinit var server:TextView;private lateinit var image:ImageView
- private lateinit var empty:LinearLayout;private lateinit var filename:TextView;private lateinit var transfer:TextView;private lateinit var stats:TextView
+class MainActivity : Activity() {
+    private lateinit var camera: TextView
+    private lateinit var server: TextView
+    private lateinit var image: ImageView
+    private lateinit var empty: LinearLayout
+    private lateinit var filename: TextView
+    private lateinit var transfer: TextView
+    private lateinit var stats: TextView
 
- override fun onCreate(state:Bundle?){super.onCreate(state)
-  window.statusBarColor=Color.BLACK;window.navigationBarColor=Color.BLACK
+    override fun onCreate(state: Bundle?) {
+        super.onCreate(state)
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.BLACK
   val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.BLACK)}
   val bar=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL;setPadding(22,10,22,10);setBackgroundColor(Color.rgb(17,17,17))}
   val brand=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
