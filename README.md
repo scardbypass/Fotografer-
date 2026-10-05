@@ -1,7 +1,19 @@
 # FOTOGRAFER — Website
 
-Branch ini **khusus website dan API**. Tidak ada source APK Android di branch ini.
+Branch ini khusus **website + API** dan siap ditempatkan langsung sebagai web root. Tidak ada folder pembungkus `website/` dan tidak ada source APK.
 
-Website menerima upload dari APK, mengelola event, galeri, QR/link customer, pilihan foto dan download.
+## Struktur
 
-Source web berada di folder `website/` pada branch ini.
+```
+admin/
+api/
+assets/
+lib/
+storage/
+config.example.php
+index.php
+photo.php
+README.md
+```
+
+Setiap Event/Folder memiliki Upload Token sendiri. APK hanya mengirim foto menggunakan Server URL + token; server menentukan folder tujuan dari token. Folder dapat diatur Public atau Private.
