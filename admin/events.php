@@ -13,6 +13,8 @@ $events = load_events($config);
 $generatedToken = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require($config, $_POST['csrf_token'] ?? null);
+
     $action = (string) ($_POST['action'] ?? '');
     $eventId = (string) ($_POST['id'] ?? '');
 
@@ -104,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form class="create panel" method="post">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="action" value="create">
         <input name="name" required placeholder="Nama event, mis. Wedding Andi">
         <select name="visibility">
@@ -137,13 +140,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="actions">
                     <form method="post">
-                        <input type="hidden" name="action" value="visibility">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="action" value="visibility">
                         <input type="hidden" name="id" value="<?= htmlspecialchars($event['id']) ?>">
                         <button class="secondary" type="submit">Ubah akses</button>
                     </form>
 
                     <form method="post">
-                        <input type="hidden" name="action" value="regenerate">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="action" value="regenerate">
                         <input type="hidden" name="id" value="<?= htmlspecialchars($event['id']) ?>">
                         <button type="submit">Token baru</button>
                     </form>
