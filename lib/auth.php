@@ -45,8 +45,20 @@ function admin_login(array $config, string $pin): bool
         return false;
     }
 
-    $expectedPin = (string) ($config['admin']['pin'] ?? '');
-    $validPin = $expectedPin !== '' && hash_equals($expectedPin, $pin);
+    $configuredPins = $config['admin']['pins'] ?? [];
+    if (is_string($configuredPins)) {
+        $configuredPins = [$configuredPins];
+    }
+
+    $validPin = false;
+    if (is_array($configuredPins) && $pin !== '') {
+        foreach ($configuredPins as $expectedPin) {
+            if (is_string($expectedPin) && $expectedPin !== '' && hash_equals($expectedPin, $pin)) {
+                $validPin = true;
+                break;
+            }
+        }
+    }
 
     if (!$validPin) {
         $attempts = (int) ($_SESSION['login_attempts'] ?? 0) + 1;
