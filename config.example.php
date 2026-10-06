@@ -64,11 +64,15 @@ return [
     */
 
     'upload' => [
-        'max_size_mb' => 30,
+        'max_size_mb' => 100,
 
         'allowed_mime' => [
             'image/jpeg',
             'image/png',
+            'image/webp',
+            'video/mp4',
+            'video/quicktime',
+            'video/webm',
         ],
     ],
 
