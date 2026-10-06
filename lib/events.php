@@ -2,9 +2,21 @@
 
 declare(strict_types=1);
 
+function storage_path(array $config): string
+{
+    $storage = $config['storage'] ?? '';
+    $path = is_array($storage) ? ($storage['path'] ?? '') : $storage;
+
+    if (!is_string($path) || trim($path) === '') {
+        throw new RuntimeException('Lokasi storage belum dikonfigurasi.');
+    }
+
+    return rtrim($path, '/\\');
+}
+
 function events_file(array $config): string
 {
-    return rtrim($config['storage']['path'], '/') . '/events.json';
+    return storage_path($config) . '/events.json';
 }
 
 function load_events(array $config): array
@@ -28,10 +40,12 @@ function load_events(array $config): array
 
 function save_events(array $config, array $events): void
 {
-    $storageDirectory = $config['storage']['path'];
+    $storageDirectory = storage_path($config);
 
     if (!is_dir($storageDirectory)) {
-        mkdir($storageDirectory, 0755, true);
+        if (!mkdir($storageDirectory, 0755, true) && !is_dir($storageDirectory)) {
+            throw new RuntimeException('Folder storage gagal dibuat.');
+        }
     }
 
     $json = json_encode(
