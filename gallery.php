@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 $config = require __DIR__ . '/lib/bootstrap.php';
 require __DIR__ . '/lib/events.php';
+if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 
 $events = load_events($config);
 $eventId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($_GET['event'] ?? ''));
@@ -14,9 +15,18 @@ if ($event === null) {
     $pageTitle = 'Galeri tidak ditemukan';
     $state = 'missing';
     $photos = [];
-} elseif (($event['visibility'] ?? 'private') !== 'public') {
-    http_response_code(403);
-    $pageTitle = 'Galeri privat';
+} elseif (($event['visibility'] ?? 'private') !== 'public' && !($_SESSION['gallery_access'][$eventId] ?? false)) {
+    $pageTitle = (string) ($event['name'] ?? 'Galeri privat');
+    $pinError = false;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $pin = trim((string) ($_POST['gallery_pin'] ?? ''));
+        $hash = (string) ($event['gallery_pin_hash'] ?? '');
+        if ($hash !== '' && password_verify($pin, $hash)) {
+            $_SESSION['gallery_access'][$eventId] = true;
+            header('Location: gallery.php?event=' . urlencode($eventId)); exit;
+        }
+        $pinError = true;
+    }
     $state = 'private';
     $photos = [];
 } else {
@@ -55,8 +65,8 @@ $safeTitle = htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8');
     <section class="state-page">
         <span class="state-code"><?= $state === 'missing' ? '404' : 'PRIVATE' ?></span>
         <h1><?= $safeTitle ?></h1>
-        <p><?= $state === 'missing' ? 'Link galeri tidak valid atau event sudah tidak tersedia.' : 'Galeri ini hanya dapat diakses oleh pihak yang memiliki izin.' ?></p>
-        <a class="button primary" href="./">Kembali ke beranda</a>
+        <p><?= $state === 'missing' ? 'Link galeri tidak valid atau event sudah tidak tersedia.' : 'Masukkan PIN yang diberikan fotografer untuk membuka galeri ini.' ?></p>
+        <?php if ($state === 'private'): ?><form method="post" class="private-pin-form"><input type="password" name="gallery_pin" inputmode="numeric" placeholder="PIN galeri" required autofocus><button type="submit">Buka galeri</button></form><?php if (!empty($pinError)): ?><p class="pin-error">PIN salah. Coba lagi.</p><?php endif; ?><?php else: ?><a class="button primary" href="./">Kembali ke beranda</a><?php endif; ?>
     </section>
 <?php else: ?>
     <section class="gallery-heading">
