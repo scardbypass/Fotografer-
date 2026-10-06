@@ -9,8 +9,7 @@ declare(strict_types=1);
 |
 | 1. Copy file ini menjadi: config.php
 | 2. Ganti base_url sesuai domain/subdomain.
-| 3. Ganti username admin.
-| 4. Isi password_hash dengan hash password admin.
+| 3. Atur satu atau beberapa PIN admin.
 |
 | config.php tidak ikut Git karena sudah ada di .gitignore.
 |
@@ -35,14 +34,16 @@ return [
     | Administrator
     |--------------------------------------------------------------------------
     |
-    | Buat hash:
-    | php -r "echo password_hash('password-kamu', PASSWORD_DEFAULT), PHP_EOL;"
+    | Semua PIN di bawah dapat digunakan untuk masuk ke panel admin.
     |
     */
 
     'admin' => [
-        'username' => 'admin',
-        'password_hash' => 'GANTI_DENGAN_HASH_PASSWORD',
+        'pins' => [
+            '829341',
+            '010101',
+            '654321',
+        ],
         'session_name' => 'fotografer_admin',
     ],
 
