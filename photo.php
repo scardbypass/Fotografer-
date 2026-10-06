@@ -5,6 +5,7 @@ declare(strict_types=1);
 $config = require __DIR__ . '/lib/bootstrap.php';
 
 require __DIR__ . '/lib/events.php';
+if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 
 $eventId = preg_replace(
     '/[^a-zA-Z0-9_-]/',
@@ -24,7 +25,7 @@ if ($event === null) {
     exit('Not found');
 }
 
-if (($event['visibility'] ?? 'private') !== 'public') {
+if (($event['visibility'] ?? 'private') !== 'public' && !($_SESSION['gallery_access'][$eventId] ?? false)) {
     http_response_code(403);
     exit('Forbidden');
 }
@@ -55,6 +56,9 @@ if (!is_string($mimeType) || !in_array($mimeType, ['image/jpeg', 'image/png'], t
 header('X-Content-Type-Options: nosniff');
 header('Content-Type: ' . $mimeType);
 header('Content-Length: ' . filesize($filePath));
+if (isset($_GET['download'])) {
+    header('Content-Disposition: attachment; filename="' . addslashes($fileName) . '"');
+}
 header('Cache-Control: public, max-age=86400');
 
 readfile($filePath);
