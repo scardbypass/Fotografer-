@@ -1,167 +1,37 @@
 <?php
-
 declare(strict_types=1);
-
-$config = require dirname(__DIR__) . '/lib/bootstrap.php';
-
-require dirname(__DIR__) . '/lib/auth.php';
-require dirname(__DIR__) . '/lib/events.php';
-
-admin_require_login($config);
-
-$events = load_events($config);
-$generatedToken = null;
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_require($config, $_POST['csrf_token'] ?? null);
-
-    $action = (string) ($_POST['action'] ?? '');
-    $eventId = (string) ($_POST['id'] ?? '');
-
-    if ($action === 'create') {
-        $name = trim((string) ($_POST['name'] ?? ''));
-        $eventId = trim(
-            strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '-', $name)),
-            '-'
-        );
-
-        if ($name !== '' && $eventId !== '') {
-            $baseId = $eventId;
-            $suffix = 2;
-
-            while (isset($events[$eventId])) {
-                $eventId = $baseId . '-' . $suffix++;
-            }
-
-            $generatedToken = new_upload_token();
-
-            $events[$eventId] = [
-                'id' => $eventId,
-                'name' => $name,
-                'visibility' => ($_POST['visibility'] ?? 'private') === 'public'
-                    ? 'public'
-                    : 'private',
-                'active' => true,
-                'token_hash' => token_hash($generatedToken),
-                'created_at' => date(DATE_ATOM),
-                'last_upload' => null,
-                'upload_count' => 0,
-            ];
-
-            save_events($config, $events);
-        }
-    }
-
-    if ($action === 'regenerate' && isset($events[$eventId])) {
-        $generatedToken = new_upload_token();
-        $events[$eventId]['token_hash'] = token_hash($generatedToken);
-        save_events($config, $events);
-    }
-
-    if ($action === 'visibility' && isset($events[$eventId])) {
-        $current = $events[$eventId]['visibility'] ?? 'private';
-        $events[$eventId]['visibility'] = $current === 'public'
-            ? 'private'
-            : 'public';
-
-        save_events($config, $events);
-    }
+$config=require dirname(__DIR__).'/lib/bootstrap.php';
+require dirname(__DIR__).'/lib/auth.php'; require dirname(__DIR__).'/lib/events.php';
+admin_require_login($config); $events=load_events($config); $notice=$_SESSION['admin_notice']??null; unset($_SESSION['admin_notice']);
+function back_notice(string $m):never{$_SESSION['admin_notice']=$m;header('Location: events.php');exit;}
+function safe_id(string $v):string{return preg_replace('/[^a-zA-Z0-9_-]/','',$v);}
+if($_SERVER['REQUEST_METHOD']==='POST'){
+ csrf_require($config,$_POST['csrf_token']??null); $a=(string)($_POST['action']??''); $id=safe_id((string)($_POST['id']??''));
+ if($a==='create'){ $name=trim((string)($_POST['name']??'')); $slug=trim(strtolower((string)preg_replace('/[^a-zA-Z0-9]+/','-',$name)),'-'); if($name===''||$slug==='')back_notice('Nama event tidak valid.'); $base=$slug;$n=2;while(isset($events[$slug]))$slug=$base.'-'.$n++; $token=new_upload_token(); $pin=trim((string)($_POST['gallery_pin']??'')); $events[$slug]=['id'=>$slug,'name'=>$name,'visibility'=>(($_POST['visibility']??'private')==='public'?'public':'private'),'active'=>true,'token_hash'=>token_hash($token),'gallery_pin_hash'=>$pin!==''?password_hash($pin,PASSWORD_DEFAULT):null,'created_at'=>date(DATE_ATOM),'last_upload'=>null,'upload_count'=>0]; save_events($config,$events); $_SESSION['new_token']=$token;$_SESSION['new_token_event']=$slug;back_notice('Event berhasil dibuat.');}
+ if(isset($events[$id])){
+  if($a==='edit'){ $name=trim((string)($_POST['name']??''));if($name!=='')$events[$id]['name']=$name;$events[$id]['visibility']=(($_POST['visibility']??'private')==='public'?'public':'private');$pin=trim((string)($_POST['gallery_pin']??''));if($pin!=='')$events[$id]['gallery_pin_hash']=password_hash($pin,PASSWORD_DEFAULT);save_events($config,$events);back_notice('Pengaturan event disimpan.');}
+  if($a==='toggle_active'){$events[$id]['active']=!($events[$id]['active']??true);save_events($config,$events);back_notice('Status upload diperbarui.');}
+  if($a==='regenerate'){$token=new_upload_token();$events[$id]['token_hash']=token_hash($token);save_events($config,$events);$_SESSION['new_token']=$token;$_SESSION['new_token_event']=$id;back_notice('Token baru dibuat. Token lama sudah tidak berlaku.');}
+  if($a==='upload'&&isset($_FILES['photos'])){$dir=storage_path($config).'/'.$id;if(!is_dir($dir))mkdir($dir,0755,true);$names=$_FILES['photos']['name']??[];$tmp=$_FILES['photos']['tmp_name']??[];$errs=$_FILES['photos']['error']??[];$ok=0;foreach((array)$tmp as $i=>$t){if(($errs[$i]??1)!==UPLOAD_ERR_OK||!is_uploaded_file($t))continue;$mime=(new finfo(FILEINFO_MIME_TYPE))->file($t);if(!in_array($mime,['image/jpeg','image/png'],true))continue;$ext=$mime==='image/png'?'png':'jpg';$fn=date('Ymd_His').'_'.bin2hex(random_bytes(4)).'.'.$ext;if(move_uploaded_file($t,$dir.'/'.$fn))$ok++;}$events[$id]['upload_count']=(int)($events[$id]['upload_count']??0)+$ok;if($ok)$events[$id]['last_upload']=date(DATE_ATOM);save_events($config,$events);back_notice($ok.' foto berhasil diupload.');}
+  if($a==='delete'){$dir=storage_path($config).'/'.$id;if(is_dir($dir)){foreach(glob($dir.'/*')?:[] as $f)if(is_file($f))@unlink($f);@rmdir($dir);}unset($events[$id]);save_events($config,$events);back_notice('Event dihapus.');}
+ }
 }
+$events=load_events($config);$newToken=$_SESSION['new_token']??null;$newTokenEvent=$_SESSION['new_token_event']??null;unset($_SESSION['new_token'],$_SESSION['new_token_event']);$csrf=htmlspecialchars(csrf_token($config),ENT_QUOTES,'UTF-8');
 ?>
-<!doctype html>
-<html lang="id">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Event — FOTOGRAFER</title>
-    <link rel="stylesheet" href="../assets/app.css">
-</head>
-<body>
-<header class="sitebar">
-    <div class="brand">
-        FOTOGRAFER
-        <small>OPERATOR CONSOLE</small>
-    </div>
-    <nav class="operator-nav">
-        <span class="count"><?= count($events) ?> EVENT</span>
-        <a href="logout.php">Keluar</a>
-    </nav>
-</header>
-
-<main class="wrap">
-    <div class="topline">
-        <div>
-            <div class="eyebrow">Workspace</div>
-            <h1>Event & Folder</h1>
-            <p>Buat tujuan upload, atur privasi galeri, dan kelola token tablet.</p>
-        </div>
-    </div>
-
-    <?php if ($generatedToken): ?>
-        <section class="token">
-            <div class="eyebrow">Token baru — copy sekarang</div>
-            <code><?= htmlspecialchars($generatedToken) ?></code>
-            <p>Token asli tidak disimpan. Buat token baru bila token hilang atau bocor.</p>
-        </section>
-    <?php endif; ?>
-
-    <form class="create panel" method="post">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" name="action" value="create">
-        <input name="name" required placeholder="Nama event, mis. Wedding Andi">
-        <select name="visibility">
-            <option value="private">Private</option>
-            <option value="public">Public</option>
-        </select>
-        <button type="submit">Buat event</button>
-    </form>
-
-    <div class="events">
-        <?php foreach (array_reverse($events, true) as $event): ?>
-            <?php $isPrivate = ($event['visibility'] ?? 'private') === 'private'; ?>
-            <article class="event">
-                <div class="event-head">
-                    <div>
-                        <h2><?= htmlspecialchars($event['name']) ?></h2>
-                        <p class="meta">
-                            /<?= htmlspecialchars($event['id']) ?>
-                            · <?= (int) ($event['upload_count'] ?? 0) ?> foto
-                        </p>
-                    </div>
-                    <span class="badge <?= $isPrivate ? 'private' : '' ?>">
-                        <?= $isPrivate ? 'PRIVATE' : 'PUBLIC' ?>
-                    </span>
-                </div>
-
-                <p class="meta">
-                    Upload terakhir:
-                    <?= htmlspecialchars($event['last_upload'] ?? 'Belum ada') ?>
-                </p>
-
-                <div class="actions">
-                    <form method="post">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
-                        <input type="hidden" name="action" value="visibility">
-                        <input type="hidden" name="id" value="<?= htmlspecialchars($event['id']) ?>">
-                        <button class="secondary" type="submit">Ubah akses</button>
-                    </form>
-
-                    <form method="post">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
-                        <input type="hidden" name="action" value="regenerate">
-                        <input type="hidden" name="id" value="<?= htmlspecialchars($event['id']) ?>">
-                        <button type="submit">Token baru</button>
-                    </form>
-
-                    <?php if (!$isPrivate): ?>
-                        <a href="../gallery.php?event=<?= urlencode($event['id']) ?>" target="_blank" rel="noopener noreferrer">
-                            Buka galeri
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </article>
-        <?php endforeach; ?>
-    </div>
-</main>
-</body>
-</html>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#eef3fb"><title>Dashboard — FOTOGRAFER</title><link rel="stylesheet" href="../assets/app.css"></head><body>
+<header class="sitebar"><div class="brand">FOTOGRAFER<small>ADMIN STUDIO</small></div><nav class="operator-nav"><span class="count"><?=count($events)?> EVENT</span><a href="logout.php">Keluar</a></nav></header>
+<main class="wrap admin-wrap"><section class="admin-hero"><div><span class="eyebrow">Dashboard</span><h1>Kelola galeri.</h1><p>Upload foto, privasi, PIN pelanggan, token kamera dan event dalam satu tempat.</p></div><button type="button" class="button primary" onclick="document.getElementById('createBox').classList.toggle('open')">+ Event baru</button></section>
+<?php if($notice):?><div class="notice"><?=htmlspecialchars($notice)?></div><?php endif;?>
+<?php if($newToken):?><section class="token"><span class="eyebrow">UPLOAD TOKEN · <?=htmlspecialchars((string)$newTokenEvent)?></span><div class="token-row"><code id="newToken"><?=htmlspecialchars($newToken)?></code><button type="button" onclick="copyText('newToken',this)">Copy</button></div><p>Simpan sekarang. Token hanya ditampilkan setelah dibuat/regenerate.</p></section><?php endif;?>
+<section id="createBox" class="panel create-box"><div class="panel-title"><div><h2>Event baru</h2><p>Buat folder tujuan untuk foto.</p></div></div><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="<?=$csrf?>"><input type="hidden" name="action" value="create"><label>Nama event<input name="name" required placeholder="Contoh: Wedding Andi & Sinta"></label><label>Akses<select name="visibility"><option value="public">Public</option><option value="private">Private + PIN</option></select></label><label>PIN galeri <span>(opsional)</span><input name="gallery_pin" inputmode="numeric" placeholder="Contoh: 123456"></label><button type="submit">Buat event</button></form></section>
+<section class="event-list">
+<?php foreach(array_reverse($events,true) as $e):$id=htmlspecialchars((string)$e['id']);$priv=($e['visibility']??'private')==='private';$active=(bool)($e['active']??true);?>
+<article class="event admin-event"><div class="event-head"><div><span class="event-status-dot <?=$active?'on':'off'?>"></span><h2><?=htmlspecialchars((string)$e['name'])?></h2><p class="meta">/<?=$id?> · <?= (int)($e['upload_count']??0)?> foto · <?=$active?'Upload aktif':'Upload nonaktif'?></p></div><span class="badge <?=$priv?'private':''?>"><?=$priv?'PRIVATE':'PUBLIC'?></span></div>
+<div class="quick-actions"><button type="button" class="secondary" onclick="document.getElementById('up-<?=$id?>').click()">＋ Upload foto</button><a href="../gallery.php?event=<?=urlencode((string)$e['id'])?>" target="_blank">Buka galeri</a><button type="button" class="secondary" onclick="document.getElementById('set-<?=$id?>').classList.toggle('open')">Pengaturan</button></div>
+<form method="post" enctype="multipart/form-data" class="hidden-upload"><input type="hidden" name="csrf_token" value="<?=$csrf?>"><input type="hidden" name="action" value="upload"><input type="hidden" name="id" value="<?=$id?>"><input id="up-<?=$id?>" type="file" name="photos[]" accept="image/jpeg,image/png" multiple onchange="this.form.submit()"></form>
+<div id="set-<?=$id?>" class="event-settings"><form method="post" class="form-grid compact"><input type="hidden" name="csrf_token" value="<?=$csrf?>"><input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="<?=$id?>"><label>Nama<input name="name" value="<?=htmlspecialchars((string)$e['name'])?>"></label><label>Akses<select name="visibility"><option value="public" <?=!$priv?'selected':''?>>Public</option><option value="private" <?=$priv?'selected':''?>>Private</option></select></label><label>PIN private<input name="gallery_pin" inputmode="numeric" placeholder="<?=!empty($e['gallery_pin_hash'])?'PIN sudah aktif':'Buat PIN baru'?>"></label><button>Simpan</button></form>
+<div class="danger-actions"><form method="post"><input type="hidden" name="csrf_token" value="<?=$csrf?>"><input type="hidden" name="action" value="regenerate"><input type="hidden" name="id" value="<?=$id?>"><button class="secondary">Buat token baru</button></form><form method="post"><input type="hidden" name="csrf_token" value="<?=$csrf?>"><input type="hidden" name="action" value="toggle_active"><input type="hidden" name="id" value="<?=$id?>"><button class="secondary"><?=$active?'Matikan upload':'Aktifkan upload'?></button></form><form method="post" onsubmit="return confirm('Hapus event dan semua fotonya?')"><input type="hidden" name="csrf_token" value="<?=$csrf?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=$id?>"><button class="danger">Hapus event</button></form></div></div></article>
+<?php endforeach;?>
+<?php if(!$events):?><div class="home-empty"><strong>Belum ada event.</strong><p>Buat event pertama untuk mulai menerima foto.</p></div><?php endif;?>
+</section></main>
+<script>function copyText(id,b){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{let x=b.textContent;b.textContent='Tersalin ✓';setTimeout(()=>b.textContent=x,1500)})}</script></body></html>
