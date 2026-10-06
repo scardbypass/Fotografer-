@@ -97,3 +97,42 @@ function find_event_by_token(array $events, string $token): ?array
 
     return null;
 }
+
+
+function format_storage_size(int $bytes): string
+{
+    if ($bytes >= 1073741824) return number_format($bytes / 1073741824, 2) . ' GB';
+    if ($bytes >= 1048576) return number_format($bytes / 1048576, 1) . ' MB';
+    if ($bytes >= 1024) return number_format($bytes / 1024, 1) . ' KB';
+    return $bytes . ' B';
+}
+
+function event_storage_stats(array $config, string $eventId): array
+{
+    $directory = storage_path($config) . '/' . preg_replace('/[^a-zA-Z0-9_-]/', '', $eventId);
+    $stats = ['photos' => 0, 'videos' => 0, 'bytes' => 0];
+    if (!is_dir($directory)) return $stats;
+
+    foreach (new DirectoryIterator($directory) as $file) {
+        if (!$file->isFile()) continue;
+        $ext = strtolower($file->getExtension());
+        $size = $file->getSize();
+        if (in_array($ext, ['jpg','jpeg','png','webp','heic'], true)) $stats['photos']++;
+        elseif (in_array($ext, ['mp4','mov','m4v','webm'], true)) $stats['videos']++;
+        else continue;
+        $stats['bytes'] += $size;
+    }
+    return $stats;
+}
+
+function total_storage_stats(array $config, array $events): array
+{
+    $total = ['photos' => 0, 'videos' => 0, 'bytes' => 0];
+    foreach ($events as $event) {
+        $stats = event_storage_stats($config, (string) ($event['id'] ?? ''));
+        $total['photos'] += $stats['photos'];
+        $total['videos'] += $stats['videos'];
+        $total['bytes'] += $stats['bytes'];
+    }
+    return $total;
+}
