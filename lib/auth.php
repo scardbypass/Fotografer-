@@ -36,27 +36,19 @@ function admin_require_login(array $config): void
     exit;
 }
 
-function admin_login(array $config, string $username, string $password): bool
+function admin_login(array $config, string $pin): bool
 {
     admin_session_start($config);
 
     $lockedUntil = (int) ($_SESSION['login_locked_until'] ?? 0);
-
     if ($lockedUntil > time()) {
         return false;
     }
 
-    $expectedUsername = (string) ($config['admin']['username'] ?? '');
-    $passwordHash = (string) ($config['admin']['password_hash'] ?? '');
+    $expectedPin = (string) ($config['admin']['pin'] ?? '');
+    $validPin = $expectedPin !== '' && hash_equals($expectedPin, $pin);
 
-    $validUsername = $expectedUsername !== ''
-        && hash_equals($expectedUsername, $username);
-
-    $validPassword = $passwordHash !== ''
-        && $passwordHash !== 'GANTI_DENGAN_PASSWORD_HASH'
-        && password_verify($password, $passwordHash);
-
-    if (!$validUsername || !$validPassword) {
+    if (!$validPin) {
         $attempts = (int) ($_SESSION['login_attempts'] ?? 0) + 1;
         $_SESSION['login_attempts'] = $attempts;
 
@@ -69,7 +61,6 @@ function admin_login(array $config, string $username, string $password): bool
     }
 
     session_regenerate_id(true);
-
     $_SESSION['admin_authenticated'] = true;
     $_SESSION['login_attempts'] = 0;
     unset($_SESSION['login_locked_until']);
