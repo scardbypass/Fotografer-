@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 function events_file(array $config): string
 {
-    return rtrim($config['storage'], '/') . '/events.json';
+    return rtrim($config['storage']['path'], '/') . '/events.json';
 }
 
 function load_events(array $config): array
@@ -28,7 +28,7 @@ function load_events(array $config): array
 
 function save_events(array $config, array $events): void
 {
-    $storageDirectory = $config['storage'];
+    $storageDirectory = $config['storage']['path'];
 
     if (!is_dir($storageDirectory)) {
         mkdir($storageDirectory, 0755, true);
