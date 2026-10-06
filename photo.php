@@ -19,10 +19,12 @@ $fileName = basename(
 $events = load_events($config);
 $event = $events[$eventId] ?? null;
 
-if (
-    $event === null
-    || ($event['visibility'] ?? 'private') !== 'public'
-) {
+if ($event === null) {
+    http_response_code(404);
+    exit('Not found');
+}
+
+if (($event['visibility'] ?? 'private') !== 'public') {
     http_response_code(403);
     exit('Forbidden');
 }
@@ -32,7 +34,7 @@ if ($eventId === '' || $fileName === '') {
     exit('Not found');
 }
 
-$filePath = $config['storage']
+$filePath = storage_path($config)
     . '/'
     . $eventId
     . '/'
@@ -45,6 +47,12 @@ if (!is_file($filePath)) {
 
 $mimeType = (new finfo(FILEINFO_MIME_TYPE))->file($filePath);
 
+if (!is_string($mimeType) || !in_array($mimeType, ['image/jpeg', 'image/png'], true)) {
+    http_response_code(415);
+    exit('Unsupported media type');
+}
+
+header('X-Content-Type-Options: nosniff');
 header('Content-Type: ' . $mimeType);
 header('Content-Length: ' . filesize($filePath));
 header('Cache-Control: public, max-age=86400');
