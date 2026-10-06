@@ -154,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </form>
 
                     <?php if (!$isPrivate): ?>
-                        <a href="../?event=<?= urlencode($event['id']) ?>" target="_blank" rel="noopener noreferrer">
+                        <a href="../gallery.php?event=<?= urlencode($event['id']) ?>" target="_blank" rel="noopener noreferrer">
                             Buka galeri
                         </a>
                     <?php endif; ?>
