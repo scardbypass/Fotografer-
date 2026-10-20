@@ -2,26 +2,20 @@
 
 Aplikasi tablet fotografer untuk preview dan pengiriman foto ke server.
 
-## Status implementasi
+## Status implementasi (Oktober 2026)
 
-Yang sudah tersedia:
+Sudah ditambahkan di source:
 
-- UI landscape untuk tablet.
-- Preview JPEG melalui `showCapturedPhoto(file)`.
-- Status CAMERA / SERVER.
-- Counter upload.
-- HTTP uploader dengan Bearer Upload Token.
-- Project Android yang dapat dibuka di Android Studio.
+- UI dark navy adaptif untuk HP/tablet.
+- Settings Server URL HTTPS + Upload Token.
+- Pemilihan multi-foto JPEG/PNG melalui document picker.
+- Multipart upload dengan validasi JSON dan daftar URI pending yang dipulihkan saat aplikasi dibuka ulang.
+- Pencarian USB PTP, izin USB, sesi PTP, polling object handles, impor JPEG baru ke penyimpanan internal dan upload otomatis ketika foto baru terdeteksi.
+- Buffer pembacaan paket USB untuk mencegah data container terpotong.
 
-Yang **belum selesai**:
+**Belum diverifikasi:** build APK, pengujian Android fisik, serta kompatibilitas EOS 600D. PTP standar tidak menjamin EOS 600D akan menyediakan JPEG baru tanpa mode/vendor command Canon. Ini belum produk siap produksi.
 
-- USB permission flow Canon.
-- PTP session Canon EOS 600D.
-- Event `ObjectAdded` dan download JPEG otomatis dari kamera.
-- Persistent upload queue/retry setelah aplikasi ditutup.
-- Layar Settings untuk Server URL + Upload Token.
-
-Jadi build APK saat ini adalah **development build**, belum APK operasional Canon 600D end-to-end.
+**Belum ada:** WorkManager/foreground upload untuk melanjutkan proses ketika aplikasi ditutup; penyimpanan token terenkripsi; deduplikasi server dan pengujian transfer berjam-jam. Daftar pending yang tersimpan bukan background uploader.
 
 ## Kebutuhan build
 
@@ -157,3 +151,14 @@ Fitur berikut masih harus diselesaikan dan diuji pada Canon EOS 600D fisik:
 - Pending queue hanya menyimpan URI, bukan salinan foto lokal; file yang dihapus/dipindahkan atau izin yang dicabut bisa hilang dari antrean.
 - Token tersimpan di SharedPreferences biasa; sebelum produksi perlu penyimpanan kredensial terenkripsi dan prosedur reset token.
 - Belum diuji Gradle build maupun pada Canon EOS 600D fisik. Jangan gunakan sebagai solusi capture otomatis siap produksi.
+
+
+### Pengujian lapangan Canon
+
+1. Hubungkan Canon EOS 600D via USB OTG ke Android yang mendukung USB Host.
+2. Buka aplikasi dan izinkan akses USB, lalu tekan Hubungkan Canon sekali lagi.
+3. Ambil JPEG baru di kamera; periksa apakah preview muncul dan status upload berubah.
+4. Jika tidak ada foto baru, periksa mode USB Canon; protokol EOS proprietary mungkin perlu implementasi tambahan.
+5. Uji internet putus, izin USB dicabut, kamera dilepas, foto beruntun, dan server menolak token.
+
+**Catatan:** project belum memiliki Gradle Wrapper dan belum berhasil dibuild/dites dalam sesi ini. Jangan menganggap perubahan source sebagai APK siap install.
