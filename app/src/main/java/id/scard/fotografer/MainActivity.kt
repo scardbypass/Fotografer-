@@ -7,10 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.hardware.usb.UsbManager
 import android.app.PendingIntent
-import android.os.Build
-import android.content.Context
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
@@ -379,6 +376,7 @@ class MainActivity : Activity() {
     }
 
     private fun queryName(uri: Uri): String {
+        if (uri.scheme == "file") return uri.path?.substringAfterLast("/") ?: "photo.jpg"
         contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
             if (it.moveToFirst()) return it.getString(0) ?: "photo.jpg"
         }
