@@ -13,7 +13,7 @@ Sudah ditambahkan di source:
 - Pencarian USB PTP, izin USB, sesi PTP, polling object handles, impor JPEG baru ke penyimpanan internal dan upload otomatis ketika foto baru terdeteksi.
 - Buffer pembacaan paket USB untuk mencegah data container terpotong.
 
-**Belum diverifikasi:** build APK, pengujian Android fisik, serta kompatibilitas EOS 600D. PTP standar tidak menjamin EOS 600D akan menyediakan JPEG baru tanpa mode/vendor command Canon. Ini belum produk siap produksi.
+**Belum diverifikasi:** build APK, pengujian Android fisik, serta kompatibilitas EOS 750D. PTP standar tidak menjamin EOS 750D akan menyediakan JPEG baru tanpa mode/vendor command Canon. Ini belum produk siap produksi.
 
 **Belum ada:** WorkManager/foreground upload untuk melanjutkan proses ketika aplikasi ditutup; penyimpanan token terenkripsi; deduplikasi server dan pengujian transfer berjam-jam. Daftar pending yang tersimpan bukan background uploader.
 
@@ -95,7 +95,7 @@ Folder/event **tidak dikirim APK**. Website menentukan folder berdasarkan Upload
 ## Alur final yang dituju
 
 ```text
-Canon EOS 600D
+Canon EOS 750D
       ↓ USB OTG / PTP
 Android Tablet
       ↓ preview JPEG
@@ -121,7 +121,7 @@ Status CAMERA saat ini hanya mendeteksi keberadaan USB device. Itu **belum membu
 
 ## Sebelum dipakai di lapangan
 
-Fitur berikut masih harus diselesaikan dan diuji pada Canon EOS 600D fisik:
+Fitur berikut masih harus diselesaikan dan diuji pada Canon EOS 750D fisik:
 
 1. USB permission.
 2. Identifikasi Still Image/PTP interface.
@@ -150,12 +150,12 @@ Fitur berikut masih harus diselesaikan dan diuji pada Canon EOS 600D fisik:
 - Belum ada background worker/foreground service untuk melanjutkan transfer saat aplikasi ditutup.
 - Pending queue hanya menyimpan URI, bukan salinan foto lokal; file yang dihapus/dipindahkan atau izin yang dicabut bisa hilang dari antrean.
 - Token tersimpan di SharedPreferences biasa; sebelum produksi perlu penyimpanan kredensial terenkripsi dan prosedur reset token.
-- Belum diuji Gradle build maupun pada Canon EOS 600D fisik. Jangan gunakan sebagai solusi capture otomatis siap produksi.
+- Belum diuji Gradle build maupun pada Canon EOS 750D fisik. Jangan gunakan sebagai solusi capture otomatis siap produksi.
 
 
 ### Pengujian lapangan Canon
 
-1. Hubungkan Canon EOS 600D via USB OTG ke Android yang mendukung USB Host.
+1. Hubungkan Canon EOS 750D via USB OTG ke Android yang mendukung USB Host.
 2. Buka aplikasi dan izinkan akses USB, lalu tekan Hubungkan Canon sekali lagi.
 3. Ambil JPEG baru di kamera; periksa apakah preview muncul dan status upload berubah.
 4. Jika tidak ada foto baru, periksa mode USB Canon; protokol EOS proprietary mungkin perlu implementasi tambahan.
@@ -170,5 +170,10 @@ Fitur berikut masih harus diselesaikan dan diuji pada Canon EOS 600D fisik:
 - Pekerjaan upload baru disusun berurutan menggunakan `APPEND_OR_REPLACE` agar foto yang datang ketika worker berjalan tidak terlewat.
 - `.github/workflows/android-build.yml` menyediakan build debug otomatis pada push branch `apk` dengan Gradle 8.9, JDK 17, SDK 35. Periksa tab Actions untuk status build dan unduh artifact hanya bila sukses.
 - Android dapat menunda atau menghentikan pekerjaan background sesuai batas sistem. Ini **bukan** foreground service yang menjamin transfer berjalan terus ketika layar mati; untuk upload foto besar atau sesi panjang perlu foreground worker + notifikasi.
-- Pengujian USB permission, PTP Canon EOS 600D, kompatibilitas protokol vendor Canon, dan hasil build aktual belum dikonfirmasi pada perangkat fisik. Jangan menyebutnya siap produksi sebelum lulus pengujian.
+- Pengujian USB permission, PTP Canon EOS 750D, kompatibilitas protokol vendor Canon, dan hasil build aktual belum dikonfirmasi pada perangkat fisik. Jangan menyebutnya siap produksi sebelum lulus pengujian.
 - Retry HTTP yang belum memiliki idempotency key bisa mengakibatkan foto ganda jika server telah menyimpan file tetapi respons terputus. Backend perlu deduplikasi berbasis upload ID/checksum.
+
+
+## Kamera utama: Canon EOS 750D
+
+Kamera fisik yang dipakai adalah Canon EOS 750D (bukan 600D). Prioritaskan pengujian USB OTG, PTP Still Image interface, USB permission, JPEG baru, impor byte asli, serta upload antrean pada EOS 750D. Dukungan PTP standar belum membuktikan kompatibilitas fitur remote capture/event EOS proprietary. Jangan menandai pengujian fisik sebagai lulus sebelum ada log dari kamera dan perangkat Android.
