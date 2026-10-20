@@ -8,6 +8,7 @@ import android.net.Uri
 import android.hardware.usb.UsbManager
 import android.app.PendingIntent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
@@ -104,6 +105,10 @@ class MainActivity : Activity() {
         gap(root, 10)
         cameraButton = button("Hubungkan Canon (USB)", panel).apply { setOnClickListener { toggleCanon() } }
         root.addView(cameraButton, LinearLayout.LayoutParams(-1, dp(48)))
+        gap(root, 9)
+        root.addView(button("Canon EOS 750D · Panduan Wi-Fi", panel).apply {
+            setOnClickListener { showWifiGuide() }
+        }, LinearLayout.LayoutParams(-1, dp(48)))
         gap(root, 15)
 
         val previewCard = vertical().apply {
@@ -136,9 +141,23 @@ class MainActivity : Activity() {
         }
         root.addView(uploadButton, LinearLayout.LayoutParams(-1, dp(50)))
         gap(root, 18)
-        root.addView(text("Foto dikirim tanpa resize atau kompresi. Untuk Canon EOS 600D, transfer otomatis PTP masih dalam pengembangan.", 11f, false, muted))
+        root.addView(text("Foto dikirim tanpa resize atau kompresi. Untuk Canon EOS 750D: USB PTP eksperimental. Wi-Fi: impor foto dari Canon Camera Connect.", 11f, false, muted))
         setContentView(scroll)
         refreshStatus()
+    }
+
+    private fun showWifiGuide() {
+        AlertDialog.Builder(this)
+            .setTitle("Canon EOS 750D · Wi-Fi")
+            .setMessage(
+                "1. Kamera: Wi-Fi function → Connect to smartphone → Camera access point mode.\n\n" +
+                "2. Android: sambungkan ke SSID Canon, lalu buka Canon Camera Connect.\n\n" +
+                "3. Impor foto JPEG ke HP melalui aplikasi Canon.\n\n" +
+                "4. Kembali ke FOTOGRAFER, tekan Pilih Foto dan Upload ke Server.\n\n" +
+                "Transfer Wi-Fi langsung/otomatis belum tersedia. Kamera mungkin tidak menyediakan internet; upload memakai jaringan seluler setelah foto tersimpan."
+            )
+            .setPositiveButton("Mengerti", null)
+            .show()
     }
 
     private fun toggleCanon() {
