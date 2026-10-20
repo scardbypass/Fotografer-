@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+$config=require __DIR__.'/lib/bootstrap.php';
+?>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1424"><title>Uploader — FOTOGRAFER</title><link rel="stylesheet" href="assets/uploader.css"><link rel="manifest" href="manifest.webmanifest"></head>
+<body><main class="shell"><header><div class="logo">F</div><div><strong>FOTOGRAFER</strong><small>WEB UPLOADER · iOS / Android</small></div></header>
+<section class="hero"><span class="eyebrow">STUDIO WORKSPACE</span><h1>Upload foto.<br><em>Langsung tayang.</em></h1><p>Gunakan Safari di iPhone/iPad untuk mengirim foto asli ke galeri pelanggan.</p></section>
+<section class="panel"><label for="server">Alamat server</label><input id="server" type="url" inputmode="url" placeholder="https://akuimutya.my.id" autocomplete="url" value="<?=htmlspecialchars(rtrim((string)($config['app']['base_url']??''),'/'),ENT_QUOTES,'UTF-8')?>"><label for="token">Upload token event</label><div class="token-row"><input id="token" type="password" placeholder="ft_..." autocomplete="off"><button id="reveal" type="button" aria-label="Lihat token">◉</button></div><p class="hint">Token dari Admin → Event. Token tidak disimpan di browser dan tidak dikirim ke pihak lain.</p></section>
+<section class="panel"><div class="section-title"><h2>Media</h2><span id="total">0 file</span></div><label class="drop" for="files"><span class="symbol">＋</span><strong>Pilih foto atau video</strong><small>Bisa pilih banyak file dari Photos atau Files</small></label><input id="files" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden><div id="queue" class="queue"></div><button id="upload" class="primary" disabled>Mulai upload</button><p id="status" class="status" role="status" aria-live="polite">Pilih file untuk memulai.</p></section>
+<footer>File diunggah tanpa kompresi atau perubahan resolusi. Jangan tutup Safari selama upload.</footer></main><script src="assets/uploader.js" defer></script></body></html>
