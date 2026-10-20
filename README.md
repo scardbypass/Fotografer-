@@ -177,3 +177,10 @@ Fitur berikut masih harus diselesaikan dan diuji pada Canon EOS 750D fisik:
 ## Kamera utama: Canon EOS 750D
 
 Kamera fisik yang dipakai adalah Canon EOS 750D (bukan 600D). Prioritaskan pengujian USB OTG, PTP Still Image interface, USB permission, JPEG baru, impor byte asli, serta upload antrean pada EOS 750D. Dukungan PTP standar belum membuktikan kompatibilitas fitur remote capture/event EOS proprietary. Jangan menandai pengujian fisik sebagai lulus sebelum ada log dari kamera dan perangkat Android.
+
+
+## Alur Wi-Fi Canon EOS 750D (tahap awal)
+
+APK menyediakan tombol panduan Wi-Fi. Hubungkan EOS 750D dengan Android menggunakan **Connect to smartphone → Camera access point mode**, kemudian gunakan **Canon Camera Connect** untuk menyalin JPEG ke perangkat. Kembali ke FOTOGRAFER untuk memilih dan mengunggah JPEG ke API. Jalur ini memerlukan pemilihan/impor foto manual di Canon Camera Connect. Wi-Fi kamera tidak menyediakan koneksi internet; pengiriman ke website dapat memakai data seluler setelah foto diimpor.
+
+**Batasan penting:** belum ada protokol Wi-Fi Canon EOS 750D yang diimplementasikan di APK (discovery, pairing, event, transfer objek), sehingga tidak boleh diklaim auto-transfer Wi-Fi. Implementasi USB PTP juga eksperimental dan belum teruji pada EOS 750D. Build debug serta uji fisik harus dinyatakan terpisah.
