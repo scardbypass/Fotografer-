@@ -256,8 +256,8 @@ class MainActivity : Activity() {
         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
         connection.chunkedStreamingMode = 65536
         try {
-            val name = queryName(uri).replace(Regex("[\\r\\n\\\"]"), "_")
-            connection.outputStream.use { out ->
+            val name = queryName(uri).replace("\\r", "_").replace("\\n", "_").replace("\\"", "_")
+            val mime = contentResolver.getType(uri) ?: "image/jpeg"\n            if (mime != "image/jpeg" && mime != "image/png") throw IllegalArgumentException("Hanya JPG/PNG didukung")\n            connection.outputStream.use { out ->
                 out.write("--$boundary\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"$name\"\r\nContent-Type: image/jpeg\r\n\r\n".toByteArray())
                 contentResolver.openInputStream(uri)?.use { it.copyTo(out) }
                     ?: throw IllegalStateException("File tidak bisa dibaca")
