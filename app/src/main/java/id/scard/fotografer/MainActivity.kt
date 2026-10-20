@@ -274,89 +274,33 @@ class MainActivity : Activity() {
     }
 
     private fun uploadPhotos() {
-        if (uploading || selected.isEmpty()) return
-        val base = prefs().getString("server", "").orEmpty()
+        val server = prefs().getString("server", "").orEmpty()
         val token = prefs().getString("token", "").orEmpty()
-        if (!base.startsWith("https://") || token.isBlank()) {
+        if (!server.startsWith("https://") || token.isBlank()) {
             showSettings()
             return
         }
-        uploading = true
-        uploadButton.isEnabled = false
-        selectButton.isEnabled = false
-        val batch = selected.toList()
-        executor.execute {
-            val remaining = mutableListOf<Uri>()
-            val completed = mutableListOf<Uri>()
-            for ((index, uri) in batch.withIndex()) {
-                runOnUiThread { summary.text = "Mengirim ${index + 1} dari ${batch.size} foto..." }
-                try {
-                    sendFile(base, token, uri)
-                    uploaded++
-                    completed.add(uri)
-                } catch (_: Exception) {
-                    failed++
-                    remaining.add(uri)
-                }
-            }
-            runOnUiThread {
-                selected.removeAll(completed.toSet())
-                saveQueue()
-                uploading = false
-                selectButton.isEnabled = true
-                uploadButton.isEnabled = selected.isNotEmpty()
-                summary.text = "${selected.size} menunggu retry · $uploaded terkirim · $failed gagal"
-                Toast.makeText(this, "Upload selesai. ${remaining.size} foto belum terkirim.", Toast.LENGTH_LONG).show()
-                if (autoUploadPending) {
-                    autoUploadPending = false
-                    val fresh = selected.filterNot { it in remaining }
-                    if (fresh.isNotEmpty()) uploadPhotos()
-                }
-            }
-        }
-    }
-
-    private fun sendFile(base: String, token: String, uri: Uri) {
-        val boundary = "Fotografer" + System.currentTimeMillis()
-        val url = URL(base.trimEnd('/') + "/api/upload.php")
-        val connection = url.openConnection() as HttpsURLConnection
-        connection.requestMethod = "POST"
-        connection.connectTimeout = 20000
-        connection.readTimeout = 120000
-        connection.doOutput = true
-        connection.setRequestProperty("Authorization", "Bearer $token")
-        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-        connection.chunkedStreamingMode = 65536
-        try {
-            val name = queryName(uri).replace("\r", "_").replace("\n", "_").replace("\"", "_")
-            val mime = if (uri.scheme == "file") "image/jpeg" else contentResolver.getType(uri) ?: "image/jpeg"
-            if (mime != "image/jpeg" && mime != "image/png") throw IllegalArgumentException("Hanya JPG/PNG didukung")
-            connection.outputStream.use { out ->
-                val header = "--$boundary\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"$name\"\r\nContent-Type: $mime\r\n\r\n"
-                out.write(header.toByteArray())
-                (if (uri.scheme == "file") File(uri.path!!).inputStream() else contentResolver.openInputStream(uri))?.use { it.copyTo(out) }
-                    ?: throw IllegalStateException("File tidak bisa dibaca")
-                out.write("\r\n--$boundary--\r\n".toByteArray())
-            }
-            val response = connection.responseCode
-            val body = (if (response in 200..299) connection.inputStream else connection.errorStream)
-                ?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (response !in 200..299 || !JSONObject(body).optBoolean("ok", false)) {
-                throw IllegalStateException("Upload ditolak: HTTP $response")
-            }
-        } finally {
-            connection.disconnect()
-        }
+        if (selected.isEmpty()) return
+        saveQueue()
+        UploadWorker.schedule(applicationContext)
+        summary.text = "${selected.size} foto masuk antrean upload background"
+        Toast.makeText(this, "Antrean upload dijadwalkan", Toast.LENGTH_SHORT).show()
     }
 
     private fun saveQueue() {
-        val arr = JSONArray()
-        selected.forEach { arr.put(it.toString()) }
-        prefs().edit().putString("pending_uris", arr.toString()).apply()
+        synchronized(UploadWorker.lock) {
+            val arr = JSONArray()
+            val existing = JSONArray(prefs().getString("pending_uris", "[]") ?: "[]")
+            val items = linkedSetOf<String>()
+            for (i in 0 until existing.length()) items.add(existing.getString(i))
+            selected.forEach { items.add(it.toString()) }
+            items.forEach { arr.put(it) }
+            prefs().edit().putString("pending_uris", arr.toString()).commit()
+        }
     }
 
     private fun restoreQueue() {
-        val raw = prefs().getString("pending_uris", "[]").orEmpty()
+        val raw = synchronized(UploadWorker.lock) { prefs().getString("pending_uris", "[]").orEmpty() }
         val arr = try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
         selected.clear()
         for (i in 0 until arr.length()) {
@@ -370,9 +314,9 @@ class MainActivity : Activity() {
                 }
             } catch (_: Exception) { }
         }
-        saveQueue()
         uploadButton.isEnabled = selected.isNotEmpty()
         summary.text = "${selected.size} menunggu upload · $uploaded terkirim · $failed gagal"
+        if (selected.isNotEmpty() && prefs().getString("token", "").orEmpty().isNotBlank()) UploadWorker.schedule(applicationContext)
     }
 
     private fun queryName(uri: Uri): String {
