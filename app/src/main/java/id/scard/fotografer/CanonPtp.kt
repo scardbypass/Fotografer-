@@ -23,14 +23,25 @@ class CanonPtp(manager: UsbManager, device: UsbDevice) : Closeable {
         try { command(0x1002, 1); opened = true } catch (e: Exception) { close(); throw e }
     }
 
+    private var receiveBuffer = ByteArray(0)
+    private var receiveOffset = 0
+
     private fun read(size: Int): ByteArray {
         require(size in 0..(100 * 1024 * 1024)) { "PTP payload invalid" }
         val result = ByteArray(size)
         var pos = 0
         while (pos < size) {
-            val n = conn.bulkTransfer(input, result, pos, minOf(16384, size - pos), 15000)
-            if (n <= 0) error("PTP read timeout")
+            if (receiveOffset >= receiveBuffer.size) {
+                val chunk = ByteArray(16384)
+                val n = conn.bulkTransfer(input, chunk, chunk.size, 15000)
+                if (n <= 0) error("PTP read timeout")
+                receiveBuffer = chunk.copyOf(n)
+                receiveOffset = 0
+            }
+            val n = minOf(size - pos, receiveBuffer.size - receiveOffset)
+            receiveBuffer.copyInto(result, pos, receiveOffset, receiveOffset + n)
             pos += n
+            receiveOffset += n
         }
         return result
     }
