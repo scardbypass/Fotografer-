@@ -37,6 +37,7 @@ class MainActivity : Activity() {
     private val selected = mutableListOf<Uri>()
     private val executor = Executors.newSingleThreadExecutor()
     private var uploading = false
+    private var autoUploadPending = false
     private var uploaded = 0
     private var failed = 0
     private val cameraExecutor = Executors.newSingleThreadExecutor()
@@ -182,6 +183,7 @@ class MainActivity : Activity() {
                             showCapturedPhoto(file)
                             uploadButton.isEnabled = true
                             summary.text = "${selected.size} foto menunggu upload"
+                            if (uploading) autoUploadPending = true else uploadPhotos()
                         }
                     }
                 }
@@ -288,25 +290,31 @@ class MainActivity : Activity() {
         val batch = selected.toList()
         executor.execute {
             val remaining = mutableListOf<Uri>()
+            val completed = mutableListOf<Uri>()
             for ((index, uri) in batch.withIndex()) {
                 runOnUiThread { summary.text = "Mengirim ${index + 1} dari ${batch.size} foto..." }
                 try {
                     sendFile(base, token, uri)
                     uploaded++
+                    completed.add(uri)
                 } catch (_: Exception) {
                     failed++
                     remaining.add(uri)
                 }
             }
             runOnUiThread {
-                selected.clear()
-                selected.addAll(remaining)
+                selected.removeAll(completed.toSet())
                 saveQueue()
                 uploading = false
                 selectButton.isEnabled = true
                 uploadButton.isEnabled = selected.isNotEmpty()
                 summary.text = "${selected.size} menunggu retry · $uploaded terkirim · $failed gagal"
                 Toast.makeText(this, "Upload selesai. ${remaining.size} foto belum terkirim.", Toast.LENGTH_LONG).show()
+                if (autoUploadPending) {
+                    autoUploadPending = false
+                    val fresh = selected.filterNot { it in remaining }
+                    if (fresh.isNotEmpty()) uploadPhotos()
+                }
             }
         }
     }
@@ -374,7 +382,7 @@ class MainActivity : Activity() {
         contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
             if (it.moveToFirst()) return it.getString(0) ?: "photo.jpg"
         }
-        return "photo.jpg"
+        return uri.path?.substringAfterLast("/") ?: "photo.jpg"
     }
 
     fun showCapturedPhoto(file: File) {
