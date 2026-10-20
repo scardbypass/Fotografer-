@@ -14,6 +14,8 @@ import android.view.View
 import android.widget.*
 import java.io.File
 import java.net.URL
+import org.json.JSONObject
+import org.json.JSONArray
 import java.util.concurrent.Executors
 import javax.net.ssl.HttpsURLConnection
 
@@ -40,6 +42,7 @@ class MainActivity : Activity() {
         window.statusBarColor = background
         window.navigationBarColor = background
         render()
+        restoreQueue()
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
@@ -199,6 +202,10 @@ class MainActivity : Activity() {
         data.clipData?.let { clips ->
             for (i in 0 until clips.itemCount) selected.add(clips.getItemAt(i).uri)
         } ?: data.data?.let { selected.add(it) }
+        selected.forEach { uri ->
+            try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: SecurityException) { }
+        }
+        saveQueue()
         summary.text = "${selected.size} foto dipilih · $uploaded terkirim · $failed gagal"
         uploadButton.isEnabled = selected.isNotEmpty()
         if (selected.isNotEmpty()) {
@@ -235,6 +242,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 selected.clear()
                 selected.addAll(remaining)
+                saveQueue()
                 uploading = false
                 selectButton.isEnabled = true
                 uploadButton.isEnabled = selected.isNotEmpty()
@@ -256,9 +264,12 @@ class MainActivity : Activity() {
         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
         connection.chunkedStreamingMode = 65536
         try {
-            val name = queryName(uri).replace("\\r", "_").replace("\\n", "_").replace("\\"", "_")
-            val mime = contentResolver.getType(uri) ?: "image/jpeg"\n            if (mime != "image/jpeg" && mime != "image/png") throw IllegalArgumentException("Hanya JPG/PNG didukung")\n            connection.outputStream.use { out ->
-                out.write("--$boundary\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"$name\"\r\nContent-Type: image/jpeg\r\n\r\n".toByteArray())
+            val name = queryName(uri).replace("\r", "_").replace("\n", "_").replace("\"", "_")
+            val mime = contentResolver.getType(uri) ?: "image/jpeg"
+            if (mime != "image/jpeg" && mime != "image/png") throw IllegalArgumentException("Hanya JPG/PNG didukung")
+            connection.outputStream.use { out ->
+                val header = "--$boundary\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"$name\"\r\nContent-Type: $mime\r\n\r\n"
+                out.write(header.toByteArray())
                 contentResolver.openInputStream(uri)?.use { it.copyTo(out) }
                     ?: throw IllegalStateException("File tidak bisa dibaca")
                 out.write("\r\n--$boundary--\r\n".toByteArray())
@@ -266,12 +277,34 @@ class MainActivity : Activity() {
             val response = connection.responseCode
             val body = (if (response in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (response !in 200..299 || !body.contains("\"ok\":true")) {
+            if (response !in 200..299 || !JSONObject(body).optBoolean("ok", false)) {
                 throw IllegalStateException("Upload ditolak: HTTP $response")
             }
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun saveQueue() {
+        val arr = JSONArray()
+        selected.forEach { arr.put(it.toString()) }
+        prefs().edit().putString("pending_uris", arr.toString()).apply()
+    }
+
+    private fun restoreQueue() {
+        val raw = prefs().getString("pending_uris", "[]").orEmpty()
+        val arr = try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+        selected.clear()
+        for (i in 0 until arr.length()) {
+            val uri = Uri.parse(arr.optString(i))
+            try {
+                contentResolver.openFileDescriptor(uri, "r")?.close()
+                selected.add(uri)
+            } catch (_: Exception) { }
+        }
+        saveQueue()
+        uploadButton.isEnabled = selected.isNotEmpty()
+        summary.text = "${selected.size} menunggu upload · $uploaded terkirim · $failed gagal"
     }
 
     private fun queryName(uri: Uri): String {
