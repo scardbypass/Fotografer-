@@ -139,3 +139,21 @@ Fitur berikut masih harus diselesaikan dan diuji pada Canon EOS 600D fisik:
 8. Upload/retry otomatis.
 9. Settings Server URL + Upload Token.
 10. Tes cabut-pasang USB, internet putus, layar mati, dan banyak foto berurutan.
+
+
+## Pembaruan Oktober 2026
+
+- UI dark navy adaptif portrait/landscape.
+- Pengaturan Server URL HTTPS dan token tersedia dalam aplikasi.
+- Pilih banyak JPG/PNG melalui Android document picker.
+- Multipart upload memakai Bearer token dan memeriksa respons JSON.
+- URI foto pending disimpan dan dipulihkan saat aplikasi dibuka ulang, selama izin dokumen masih berlaku.
+- File gagal dipertahankan untuk percobaan upload manual berikutnya.
+
+### Batasan yang masih ada
+
+- Belum ada implementasi USB PTP Canon (permission, session, ObjectAdded, GetObject). Indikator USB bukan koneksi PTP.
+- Belum ada background worker/foreground service untuk melanjutkan transfer saat aplikasi ditutup.
+- Pending queue hanya menyimpan URI, bukan salinan foto lokal; file yang dihapus/dipindahkan atau izin yang dicabut bisa hilang dari antrean.
+- Token tersimpan di SharedPreferences biasa; sebelum produksi perlu penyimpanan kredensial terenkripsi dan prosedur reset token.
+- Belum diuji Gradle build maupun pada Canon EOS 600D fisik. Jangan gunakan sebagai solusi capture otomatis siap produksi.
