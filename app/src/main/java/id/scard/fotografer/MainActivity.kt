@@ -282,8 +282,11 @@ class MainActivity : Activity() {
         }
         if (selected.isEmpty()) return
         saveQueue()
+        val queued = selected.size
+        selected.clear()
         UploadWorker.schedule(applicationContext)
-        summary.text = "${selected.size} foto masuk antrean upload background"
+        uploadButton.isEnabled = false
+        summary.text = "$queued foto masuk antrean upload background"
         Toast.makeText(this, "Antrean upload dijadwalkan", Toast.LENGTH_SHORT).show()
     }
 
@@ -316,7 +319,10 @@ class MainActivity : Activity() {
         }
         uploadButton.isEnabled = selected.isNotEmpty()
         summary.text = "${selected.size} menunggu upload · $uploaded terkirim · $failed gagal"
-        if (selected.isNotEmpty() && prefs().getString("token", "").orEmpty().isNotBlank()) UploadWorker.schedule(applicationContext)
+        if (selected.isNotEmpty() && prefs().getString("token", "").orEmpty().isNotBlank()) {
+            UploadWorker.schedule(applicationContext)
+            selected.clear()
+        }
     }
 
     private fun queryName(uri: Uri): String {
