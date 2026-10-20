@@ -6,6 +6,9 @@ import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
 import android.hardware.usb.UsbManager
+import android.app.PendingIntent
+import android.os.Build
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -36,6 +39,9 @@ class MainActivity : Activity() {
     private var uploading = false
     private var uploaded = 0
     private var failed = 0
+    private val cameraExecutor = Executors.newSingleThreadExecutor()
+    @Volatile private var cameraRunning = false
+    private var cameraButton: Button? = null
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -100,6 +106,9 @@ class MainActivity : Activity() {
         gap(statusCard, 9)
         statusCard.addView(serverStatus)
         root.addView(statusCard)
+        gap(root, 10)
+        cameraButton = button("Hubungkan Canon (USB)", panel).apply { setOnClickListener { toggleCanon() } }
+        root.addView(cameraButton, LinearLayout.LayoutParams(-1, dp(48)))
         gap(root, 15)
 
         val previewCard = vertical().apply {
@@ -135,6 +144,56 @@ class MainActivity : Activity() {
         root.addView(text("Foto dikirim tanpa resize atau kompresi. Untuk Canon EOS 600D, transfer otomatis PTP masih dalam pengembangan.", 11f, false, muted))
         setContentView(scroll)
         refreshStatus()
+    }
+
+    private fun toggleCanon() {
+        if (cameraRunning) {
+            cameraRunning = false
+            cameraButton?.text = "Hubungkan Canon (USB)"
+            return
+        }
+        val manager = getSystemService(USB_SERVICE) as UsbManager
+        val device = CanonPtp.find(manager)
+        if (device == null) {
+            Toast.makeText(this, "Kamera PTP belum terdeteksi", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!manager.hasPermission(device)) {
+            val intent = Intent("id.scard.fotografer.USB_PERMISSION").setPackage(packageName)
+            val pending = PendingIntent.getBroadcast(
+                this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+            manager.requestPermission(device, pending)
+            Toast.makeText(this, "Izinkan USB, lalu tekan Hubungkan Canon lagi", Toast.LENGTH_LONG).show()
+            return
+        }
+        cameraRunning = true
+        cameraButton?.text = "Putuskan Canon"
+        cameraStatus.text = "KAMERA  •  Membuka sesi PTP..."
+        cameraExecutor.execute {
+            try {
+                CanonPtp(manager, device).use { ptp ->
+                    runOnUiThread { cameraStatus.text = "KAMERA  •  PTP tersambung, menunggu JPEG baru" }
+                    ptp.watch(File(filesDir, "canon"), { cameraRunning }) { file ->
+                        runOnUiThread {
+                            val uri = Uri.fromFile(file)
+                            selected.add(uri)
+                            saveQueue()
+                            showCapturedPhoto(file)
+                            uploadButton.isEnabled = true
+                            summary.text = "${selected.size} foto menunggu upload"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    cameraStatus.text = "KAMERA  •  PTP gagal: ${e.message}"
+                }
+            } finally {
+                cameraRunning = false
+                runOnUiThread { cameraButton?.text = "Hubungkan Canon (USB)" }
+            }
+        }
     }
 
     private fun prefs() = getSharedPreferences("fotografer_settings", MODE_PRIVATE)
@@ -265,12 +324,12 @@ class MainActivity : Activity() {
         connection.chunkedStreamingMode = 65536
         try {
             val name = queryName(uri).replace("\r", "_").replace("\n", "_").replace("\"", "_")
-            val mime = contentResolver.getType(uri) ?: "image/jpeg"
+            val mime = if (uri.scheme == "file") "image/jpeg" else contentResolver.getType(uri) ?: "image/jpeg"
             if (mime != "image/jpeg" && mime != "image/png") throw IllegalArgumentException("Hanya JPG/PNG didukung")
             connection.outputStream.use { out ->
                 val header = "--$boundary\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"$name\"\r\nContent-Type: $mime\r\n\r\n"
                 out.write(header.toByteArray())
-                contentResolver.openInputStream(uri)?.use { it.copyTo(out) }
+                (if (uri.scheme == "file") File(uri.path!!).inputStream() else contentResolver.openInputStream(uri))?.use { it.copyTo(out) }
                     ?: throw IllegalStateException("File tidak bisa dibaca")
                 out.write("\r\n--$boundary--\r\n".toByteArray())
             }
@@ -298,8 +357,12 @@ class MainActivity : Activity() {
         for (i in 0 until arr.length()) {
             val uri = Uri.parse(arr.optString(i))
             try {
-                contentResolver.openFileDescriptor(uri, "r")?.close()
-                selected.add(uri)
+                if (uri.scheme == "file") {
+                    if (uri.path?.let { File(it).isFile } == true) selected.add(uri)
+                } else {
+                    contentResolver.openFileDescriptor(uri, "r")?.close()
+                    selected.add(uri)
+                }
             } catch (_: Exception) { }
         }
         saveQueue()
@@ -333,6 +396,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        cameraRunning = false
+        cameraExecutor.shutdown()
         executor.shutdown()
         super.onDestroy()
     }
