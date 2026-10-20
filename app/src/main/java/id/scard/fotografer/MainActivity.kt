@@ -31,12 +31,8 @@ class MainActivity : Activity() {
     private lateinit var emptyPreview: TextView
     private lateinit var uploadButton: Button
     private lateinit var selectButton: Button
+    private var usbPermissionReceiver: android.content.BroadcastReceiver? = null
     private val selected = mutableListOf<Uri>()
-    private val executor = Executors.newSingleThreadExecutor()
-    private var uploading = false
-    private var autoUploadPending = false
-    private var uploaded = 0
-    private var failed = 0
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     @Volatile private var cameraRunning = false
     private var cameraButton: Button? = null
@@ -46,6 +42,7 @@ class MainActivity : Activity() {
         window.statusBarColor = background
         window.navigationBarColor = background
         render()
+        registerUsbPermissionReceiver()
         restoreQueue()
     }
 
@@ -157,12 +154,12 @@ class MainActivity : Activity() {
             return
         }
         if (!manager.hasPermission(device)) {
-            val intent = Intent("id.scard.fotografer.USB_PERMISSION").setPackage(packageName)
+            val intent = Intent(USB_PERMISSION_ACTION).setPackage(packageName)
             val pending = PendingIntent.getBroadcast(
                 this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
             manager.requestPermission(device, pending)
-            Toast.makeText(this, "Izinkan USB, lalu tekan Hubungkan Canon lagi", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Menunggu izin akses USB...", Toast.LENGTH_LONG).show()
             return
         }
         cameraRunning = true
@@ -180,7 +177,7 @@ class MainActivity : Activity() {
                             showCapturedPhoto(file)
                             uploadButton.isEnabled = true
                             summary.text = "${selected.size} foto menunggu upload"
-                            if (uploading) autoUploadPending = true else uploadPhotos()
+                            uploadPhotos()
                         }
                     }
                 }
@@ -198,9 +195,9 @@ class MainActivity : Activity() {
     private fun prefs() = getSharedPreferences("fotografer_settings", MODE_PRIVATE)
     private fun refreshStatus() {
         val usb = getSystemService(USB_SERVICE) as UsbManager
-        val count = usb.deviceList.size
-        cameraStatus.text = if (count == 0) "KAMERA  •  USB belum terdeteksi"
-            else "KAMERA  •  $count perangkat USB terdeteksi (PTP belum terhubung)"
+        val camera = CanonPtp.find(usb)
+        if (!cameraRunning) cameraStatus.text = if (camera == null) "KAMERA  •  USB PTP belum terdeteksi"
+            else "KAMERA  •  Perangkat PTP terdeteksi, belum tersambung"
         val server = prefs().getString("server", "").orEmpty()
         val token = prefs().getString("token", "").orEmpty()
         serverStatus.text = if (server.isNotBlank() && token.isNotBlank())
@@ -222,10 +219,10 @@ class MainActivity : Activity() {
             setSingleLine(true)
             setText(prefs().getString("token", ""))
         }
-        box.addView(text("Server URL", 13f, true, Color.DKGRAY))
+        box.addView(text("Server URL", 13f, true, Color.WHITE))
         box.addView(url)
         gap(box, 12)
-        box.addView(text("Upload Token", 13f, true, Color.DKGRAY))
+        box.addView(text("Upload Token", 13f, true, Color.WHITE))
         box.addView(token)
         AlertDialog.Builder(this)
             .setTitle("Pengaturan Upload")
@@ -234,7 +231,8 @@ class MainActivity : Activity() {
             .setPositiveButton("Simpan") { _, _ ->
                 val address = url.text.toString().trim().trimEnd('/')
                 val secret = token.text.toString().trim()
-                if (!address.startsWith("https://") || secret.isBlank()) {
+                val parsed = Uri.parse(address)
+                if (parsed.scheme != "https" || parsed.host.isNullOrBlank() || secret.isBlank()) {
                     Toast.makeText(this, "URL HTTPS dan token wajib diisi", Toast.LENGTH_LONG).show()
                 } else {
                     prefs().edit().putString("server", address).putString("token", secret).apply()
@@ -264,7 +262,7 @@ class MainActivity : Activity() {
             try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: SecurityException) { }
         }
         saveQueue()
-        summary.text = "${selected.size} foto dipilih · $uploaded terkirim · $failed gagal"
+        summary.text = "${selected.size} foto dipilih"
         uploadButton.isEnabled = selected.isNotEmpty()
         if (selected.isNotEmpty()) {
             photoPreview.setImageURI(selected.first())
@@ -318,7 +316,7 @@ class MainActivity : Activity() {
             } catch (_: Exception) { }
         }
         uploadButton.isEnabled = selected.isNotEmpty()
-        summary.text = "${selected.size} menunggu upload · $uploaded terkirim · $failed gagal"
+        summary.text = "${selected.size} foto menunggu upload"
         if (selected.isNotEmpty() && prefs().getString("token", "").orEmpty().isNotBlank()) {
             UploadWorker.schedule(applicationContext)
             selected.clear()
@@ -346,6 +344,29 @@ class MainActivity : Activity() {
         runOnUiThread { summary.text = "$uploaded terkirim · $pending antrean · $failed gagal — $message" }
     }
 
+    private fun registerUsbPermissionReceiver() {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context, intent: Intent) {
+                if (intent.action != USB_PERMISSION_ACTION) return
+                val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+                if (granted && !cameraRunning) toggleCanon()
+                else if (!granted) Toast.makeText(this@MainActivity, "Izin kamera USB ditolak", Toast.LENGTH_LONG).show()
+            }
+        }
+        val filter = android.content.IntentFilter(USB_PERMISSION_ACTION)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(receiver, filter)
+        }
+        usbPermissionReceiver = receiver
+    }
+
+    companion object {
+        private const val USB_PERMISSION_ACTION = "id.scard.fotografer.USB_PERMISSION"
+    }
+
     override fun onResume() {
         super.onResume()
         if (::cameraStatus.isInitialized) refreshStatus()
@@ -353,8 +374,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         cameraRunning = false
+        usbPermissionReceiver?.let { unregisterReceiver(it) }
         cameraExecutor.shutdown()
-        executor.shutdown()
         super.onDestroy()
     }
 }
