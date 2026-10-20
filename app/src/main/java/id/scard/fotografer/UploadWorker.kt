@@ -96,7 +96,7 @@ class UploadWorker(context: Context, params: WorkerParameters) : Worker(context,
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
-                "fotografer_upload", ExistingWorkPolicy.KEEP, request
+                "fotografer_upload", ExistingWorkPolicy.APPEND_OR_REPLACE, request
             )
         }
     }
