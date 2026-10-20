@@ -53,7 +53,7 @@ class CanonPtp(manager: UsbManager, device: UsbDevice) : Closeable {
     private fun command(op: Int, vararg args: Int): ByteArray? {
         tx++
         val buf = ByteBuffer.allocate(12 + 4 * args.size).order(ByteOrder.LITTLE_ENDIAN)
-        buf.putInt(buf.capacity()).putShort(1).putShort(op.toShort()).putInt(tx)
+        buf.putInt(buf.capacity()).putShort(1.toShort()).putShort(op.toShort()).putInt(tx)
         args.forEach { buf.putInt(it) }
         val packet = buf.array()
         var pos = 0
