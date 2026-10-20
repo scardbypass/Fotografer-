@@ -162,3 +162,13 @@ Fitur berikut masih harus diselesaikan dan diuji pada Canon EOS 600D fisik:
 5. Uji internet putus, izin USB dicabut, kamera dilepas, foto beruntun, dan server menolak token.
 
 **Catatan:** project belum memiliki Gradle Wrapper dan belum berhasil dibuild/dites dalam sesi ini. Jangan menganggap perubahan source sebagai APK siap install.
+
+
+## Pembaruan antrean background dan CI
+
+- `UploadWorker.kt` menggunakan AndroidX WorkManager, jaringan wajib tersedia, backoff eksponensial dan daftar URI yang disimpan. Foto yang berhasil dikonfirmasi server dihapus dari daftar pending. JPEG impor Canon yang berhasil terkirim dapat dihapus dari cache internal.
+- Pekerjaan upload baru disusun berurutan menggunakan `APPEND_OR_REPLACE` agar foto yang datang ketika worker berjalan tidak terlewat.
+- `.github/workflows/android-build.yml` menyediakan build debug otomatis pada push branch `apk` dengan Gradle 8.9, JDK 17, SDK 35. Periksa tab Actions untuk status build dan unduh artifact hanya bila sukses.
+- Android dapat menunda atau menghentikan pekerjaan background sesuai batas sistem. Ini **bukan** foreground service yang menjamin transfer berjalan terus ketika layar mati; untuk upload foto besar atau sesi panjang perlu foreground worker + notifikasi.
+- Pengujian USB permission, PTP Canon EOS 600D, kompatibilitas protokol vendor Canon, dan hasil build aktual belum dikonfirmasi pada perangkat fisik. Jangan menyebutnya siap produksi sebelum lulus pengujian.
+- Retry HTTP yang belum memiliki idempotency key bisa mengakibatkan foto ganda jika server telah menyimpan file tetapi respons terputus. Backend perlu deduplikasi berbasis upload ID/checksum.
